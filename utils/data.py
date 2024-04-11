@@ -13,22 +13,17 @@ def get_training_data(train_path, image_path):
         raise Exception("Error loading training data at path: {train_path}")
 
     cases = []
-    # for case in tqdm(df[["id"]].iterrows()):
-    #     id = case[1]["id"]
-    #     case = PlantCase(id, image_path)
-    #     cases.append(case)
 
     attr_list = "id,X4_mean,X11_mean,X18_mean,X26_mean,X50_mean,X3112_mean,X4_sd,X11_sd,X18_sd,X26_sd,X50_sd,X3112_sd".split(",")
-    print(attr_list)
+
     for case in tqdm(df.iterrows()):
         data = {}
         for attr in attr_list: 
-            # id = case[1]["id"]
             data[attr] = case[1][attr]
         case = PlantCase(data, image_path)
         cases.append(case)
     
-    cases[0].pprint()
+
     shuffle(cases)
 
     return cases
@@ -63,8 +58,8 @@ class CaseCollator:
             mean.append(case.trait_mean)
             sd.append(case.trait_sd)
   
-        # return (torch.Tensor([item.cpu().detach().numpy() for item in imgs]), torch.Tensor(mean),torch.Tensor(sd))
         return (torch.Tensor(np.array(imgs)), torch.Tensor(mean),torch.Tensor(sd))
+        # return (np.array(imgs), torch.Tensor(mean),torch.Tensor(sd))
 
         
            

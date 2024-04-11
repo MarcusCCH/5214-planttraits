@@ -18,7 +18,8 @@ from utils.data import get_training_data, CaseCollator
 
 from model import LeNet, ResNet
 
-from torchvision.models import resnet18
+from loss.multitask_loss import MultiTaskLoss
+from torchvision.models import resnet18, resnet50, efficientnet_b7
 
 def add_parser_arguments(parser):
     
@@ -33,16 +34,25 @@ def add_parser_arguments(parser):
     parser.add_argument('--save_every', type=int, default=10)
 
     parser.add_argument('--save_dir', type=str, default='output')
-    parser.add_argument('--data_dir', type=str, default='data/')
+    parser.add_argument('--csv_path', type=str, default='sample.csv')
 
     parser.add_argument('--train_ratio', type=float, default=0.6)
     parser.add_argument('--valid_ratio', type=float, default=0.2)
 
-    parser.add_argument('--s`eed', type=int, default=42)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--weight_decay', type=float, default=1e-5)
     parser.add_argument('--case_name', type=str, default="test")
     parser.add_argument('--num_traits', type=float, default=6)
+    parser.add_argument('--seed', type=int, default=42)
+
+def seed_everything(this_seed):
+    seed(this_seed)
+    np.random.seed(this_seed)
+    torch.manual_seed(this_seed)
+    torch.cuda.manual_seed(this_seed)
+    torch.cuda.manual_seed_all(this_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 if __name__ == "__main__":
@@ -51,7 +61,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # seed_everything(args.seed)
+    seed_everything(args.seed)
 
     save_dir = os.path.join(args.save_dir, args.case_name)
 
@@ -64,8 +74,8 @@ if __name__ == "__main__":
 
     # prerare dataset
     # train_csv = os.path.join(args.data_dir, "train.csv")
-    train_csv = "sample.csv"
-    train_images = os.path.join(args.data_dir, "train_images")
+    train_csv = args.csv_path
+    train_images = "data/train_images"
     training_data = get_training_data(train_csv, train_images)
 
     total_num = len(training_data)
@@ -87,46 +97,54 @@ if __name__ == "__main__":
 
     print("prepare train loader")
 
-    # model = LeNet(6)
     # model = ResNet(3,6)
-    model = resnet18(pretrained='True')
-
+    # model = resnet50()
+    # model = resnet50(weights=None, dropout = 0.5, num_classes=args.num_traits)
+    model = efficientnet_b7(weights=None, dropout = 0.5, num_classes=args.num_traits)
     model.to(args.device)
 
+    is_regression = torch.Tensor([1,1,1,1,1,1])
+    multitaskloss_instance = MultiTaskLoss(is_regression, reduction = "sum")
+    
+    params = list(model.parameters()) + list(multitaskloss_instance.parameters())
 
-    optimizer = torch.optim.Adam(model.parameters(),
+
+    optimizer = torch.optim.Adam(params,
                                  lr=args.lr,
                                  weight_decay=args.weight_decay)
     criterion = nn.MSELoss(reduction='mean')
     epochs = args.epochs
     total_step = len(train_loader)
 
+    model.train()
+    multitaskloss_instance.train()
 
     for epoch in range(epochs):  
         with tqdm(train_loader, desc=f"train epoch {epoch}") as t:
             for i, (images, mean,sd) in enumerate(t):
+                model.train()
+
                 images= images.to(args.device)
                 mean = mean.to(args.device)
                 sd = sd.to(args.device)
 
-                # image_np = images.cpu().detach().numpy()
-                # print(image_np.shape)
+                outputs = model(images)
                 
-                # # # zero the parameter gradients
                 optimizer.zero_grad()
 
-                # print("hi")
-                # # forward + backward + optimize
-                outputs = model(images)
 
-                print(outputs)
-                loss = criterion(outputs, mean)
-  
+                # loss = criterion(outputs, mean)
+                loss = (outputs - mean)
+
+                loss = loss.mean(dim=0)
+
+                multitaskloss = multitaskloss_instance(loss)
+
+                
                 loss.backward()
+                multitaskloss.backward()
                 optimizer.step()
+                
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, i+1, total_step, loss.item()))
 
-                # # print statistics
-                if (i+1) % 100 == 0:
-                    print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, i+1, total_step, loss.item()))
-    
   

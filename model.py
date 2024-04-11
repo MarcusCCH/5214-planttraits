@@ -29,14 +29,14 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.c1 = nn.Conv2d(num_channel_in, 128, kernel_size=3, stride=1, padding=1)
         self.c2 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
-        self.c3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
+        # self.c3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.linear = torch.nn.Linear(512, class_num)
+        self.linear = torch.nn.Linear(256, class_num)
 
     def forward(self, x):
         x = self.c1(x)
         x = self.c2(x)
-        x = self.c3(x)
+        # x = self.c3(x)
         x = self.gap(x)
         x = torch.flatten(x, 1)
         x = self.linear(x)

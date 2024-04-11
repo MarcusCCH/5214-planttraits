@@ -1,0 +1,1 @@
+python3 main.py --csv_path train_1000.csv --batch_size 16
