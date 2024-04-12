@@ -14,7 +14,7 @@ from torch import nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from utils.data import PlantDataset, CaseCollator
+from utils.data import PlantDataset
 
 from model import LeNet, ResNet, AuxModel, Ensemble
 from torch.utils.data import random_split
@@ -96,10 +96,12 @@ def eval_epoch(e, ds, model, device):
     with tqdm(ds, desc=f"train e {e}") as t:
         for i, case in enumerate(t):
 
-            images= case["images"].to(device)
-            images = images.unsqueeze(0)
-            features = case["features"].to(device)
-            features = features.unsqueeze(0)
+            images= case["images"]
+            images = images.unsqueeze(0).to(device)
+
+            features = case["features"]
+            features = features.unsqueeze(0).to(device)
+        
 
             labels = case["labels"].to(device)
             aux_labels = case["aux_labels"].to(device)
@@ -110,7 +112,7 @@ def eval_epoch(e, ds, model, device):
             
             metric_data['epoch'].append(e)
             metric_data['id'].append(case["id"])
-            metric_data['r2'].append(r2)
+            metric_data['r2'].append(r2.detach().cpu().numpy())
 
     return metric_data    
     
@@ -179,15 +181,15 @@ if __name__ == "__main__":
     for e in range(epochs):  
         train_epoch(e,train_loader, model, optimizer, args.device)
         
-        # if e % args.eval_every == 0 or e == args.epochs:
-        # metric_data = eval_epoch(e,val_ds,  model, args.device)
-        # print(metric_data)
-        # pd.DataFrame(metric_data).to_csv(
-        #     os.path.join(save_dir, f"valid_metric_{e}.csv"))
-        
-        # metric_data = eval_epoch(e,test_ds, model,args.device)
-        # pd.DataFrame(metric_data).to_csv(
-        #     os.path.join(save_dir, f"test_metric_{e}.csv"))
+        if e % args.eval_every == 0 or e == args.epochs:
+            metric_data = eval_epoch(e,val_ds,  model, args.device)
+            print(metric_data)
+            pd.DataFrame(metric_data).to_csv(
+                os.path.join(save_dir, f"valid_metric_{e}.csv"))
+            
+            metric_data = eval_epoch(e,test_ds, model,args.device)
+            pd.DataFrame(metric_data).to_csv(
+                os.path.join(save_dir, f"test_metric_{e}.csv"))
             
         if e % args.save_every == 0:
             torch.save(model.state_dict(), os.path.join(save_dir, f"model_{e}.pth"))
