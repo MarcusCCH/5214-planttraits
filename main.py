@@ -19,7 +19,7 @@ from utils.data import get_training_data, CaseCollator
 from model import LeNet, ResNet
 
 from loss.multitask_loss import MultiTaskLoss
-from torchvision.models import resnet18, resnet50, efficientnet_b7
+from torchvision.models import resnet18, resnet50, efficientnet_v2_s, EfficientNet_V2_S_Weights
 
 def add_parser_arguments(parser):
     
@@ -100,7 +100,8 @@ if __name__ == "__main__":
     # model = ResNet(3,6)
     # model = resnet50()
     # model = resnet50(weights=None, dropout = 0.5, num_classes=args.num_traits)
-    model = efficientnet_b7(weights=None, dropout = 0.5, num_classes=args.num_traits)
+    # model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT, dropout = 0.5, num_classes=args.num_traits)
+    model = efficientnet_v2_s(weights=None, dropout = 0.5, num_classes=args.num_traits)
     model.to(args.device)
 
     is_regression = torch.Tensor([1,1,1,1,1,1])
@@ -135,16 +136,19 @@ if __name__ == "__main__":
 
                 # loss = criterion(outputs, mean)
                 loss = (outputs - mean)
-
                 loss = loss.mean(dim=0)
-
-                multitaskloss = multitaskloss_instance(loss)
-
+                loss.retain_grad()
+                # loss.backward()
+                # multitaskloss = multitaskloss_instance(loss)
                 
-                loss.backward()
-                multitaskloss.backward()
+                # loss.backward(gradient = torch.ones(args.num_traits).to(args.device))
+                # multitaskloss.backward()
+
+                for idx, loss_i in enumerate(loss):
+                    # print(loss_i)
+                    loss_i.backward(retain_graph=True)
                 optimizer.step()
                 
-                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, i+1, total_step, loss.item()))
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, i+1, total_step, loss.sum().item()))
 
   
