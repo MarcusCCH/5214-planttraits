@@ -17,11 +17,11 @@ class PlantDataset(Dataset):
         classes = "X4_mean,X11_mean,X18_mean,X26_mean,X50_mean,X3112_mean".split(",")
 
         aux_classes = list(map(lambda x: x.replace("mean","sd"), classes))
-        feature_cols = self.test_df.columns[1:-1].fillna(-1).tolist()
+        feature_cols = self.test_df.columns[1:-1].tolist()
 
-        self.train_features = self.train_df[feature_cols].values
-        self.train_labels = self.train_df[classes].values
-        self.train_aux_labels = self.train_df[aux_classes].values
+        self.train_features = self.train_df[feature_cols].fillna(-1).values
+        self.train_labels = self.train_df[classes].fillna(-1).values
+        self.train_aux_labels = self.train_df[aux_classes].fillna(-1).values
         
         self.train_df['image_path'] = f'{image_dir}/train_images/'+self.train_df['id'].astype(str)+'.jpeg'
         self.images = (self.train_df[["image_path"]].values)

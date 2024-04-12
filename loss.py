@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from model import ResNet
-
+import numpy as np
 
 def R2Loss(y_true, y_pred):
     SS_res = torch.sum(torch.square((y_pred-y_true)), dim = 0)
@@ -23,11 +23,9 @@ class MultiTaskLossWrapper(nn.Module):
         self.L1 = nn.L1Loss()
 
     def forward(self, preds, targ):
-        loss0 = self.L1(preds[0], targ[0])
-        loss1 = self.L1(preds[1], targ[1])
-        loss2 = self.L1(preds[2], targ[2])
-        loss3 = self.L1(preds[3], targ[3])
-        loss4 = self.L1(preds[4], targ[4])
-        loss5 = self.L1(preds[5], targ[5])
-        
-        return loss0+loss1+loss2+loss3+loss4+loss5
+        total_loss = 0
+        for b in range(len(preds)):
+            for i,(p,t) in enumerate(zip(preds[b],targ[b])):
+                total_loss += self.L1(p,t)
+     
+        return total_loss

@@ -74,10 +74,10 @@ class AuxModel(nn.Module):
         return x
     
 class MultiTaskLayer(nn.Module):
-    def __init__(self, in_features):
+    def __init__(self, out_features):
         super().__init__()
-        self.linear = nn.Linear(in_features, in_features)
-        self.final = nn.Linear(in_features, 1)
+        self.linear = nn.LazyLinear(out_features)
+        self.final = nn.Linear(out_features, 1)
     def forward(self, x):
         h0 = self.linear(x)
         h1 = self.linear(x)
@@ -112,5 +112,27 @@ class Ensemble(nn.Module):
         mean = self.fc_mean(x)
         sd = self.fc_sd(x)
         return (mean,sd)
+    
+    
+class EnsembleMultiTask(nn.Module):
+    def __init__(self, image_model, aux_model):
+        super(Ensemble, self).__init__()
+        self.image_model = image_model
+        self.aux_model = aux_model
+        self.fc_mean = MultiTaskLayer(512)
+        self.fc_sd = MultiTaskLayer(512)
+        
+        self.dropout = nn.Dropout(p=0.5)
+        
+    def forward(self, x1,x2):
+        x1 = self.image_model(x1).float()
+        # x1 = self.gap(x1)
+        x1 = self.dropout(x1)
+        x2 = self.aux_model(x2).float()
+        x = torch.cat((x1,x2), dim = 1)
+        SSD_mean, SLA_mean, GH_mean, SM_mean, LN_mean, LA_mean = self.fc_mean(x)
+        pred_mean = [SSD_mean, SLA_mean, GH_mean, SM_mean, LN_mean, LA_mean]
+        # sd = self.fc_sd(x)
+        return pred_mean
     
     

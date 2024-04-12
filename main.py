@@ -18,7 +18,7 @@ from utils.data import PlantDataset
 
 from model import LeNet, ResNet, AuxModel, Ensemble
 from torch.utils.data import random_split
-from loss import  R2Loss, R2Metric
+from loss import  R2Loss, R2Metric, MultiTaskLossWrapper
 from torchvision.models import resnet18, resnet50, efficientnet_v2_s, EfficientNet_V2_S_Weights
 
 def add_parser_arguments(parser):
@@ -58,7 +58,34 @@ def seed_everything(this_seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-def train_epoch(e, train_loader, model, optimizer, device):
+# def train_epoch(e, train_loader, model, optimizer, device):
+#     with tqdm(train_loader, desc=f"train e {e}") as t:
+#             for i, (batch) in enumerate(t):
+#                 if i+1 == total_step: # no idea why loss explodes 
+#                     break;
+#                 images= batch["images"].to(device)
+#                 features = batch["features"].to(device)
+
+#                 labels = batch["labels"].to(device)
+#                 aux_labels = batch["aux_labels"].to(device)
+
+#                 mean,sd = model(images, features)
+            
+                
+#                 optimizer.zero_grad()
+                
+#                 sd_loss = args.loss_sd_weight * R2Loss(aux_labels, sd)
+#                 mean_loss = args.loss_mean_weight * R2Loss(labels,mean)
+#                 loss =  mean_loss + sd_loss
+
+#                 loss.backward()
+                
+#                 optimizer.step()
+                
+#                 print('e [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(e+1, epochs, i+1, total_step, loss.item()))
+#                 logging.info({"epoch": e, "loss" : loss.item()})
+
+def train_epoch(e, train_loader, model, loss_fn, optimizer, device):
     with tqdm(train_loader, desc=f"train e {e}") as t:
             for i, (batch) in enumerate(t):
                 if i+1 == total_step: # no idea why loss explodes 
@@ -69,17 +96,13 @@ def train_epoch(e, train_loader, model, optimizer, device):
                 labels = batch["labels"].to(device)
                 aux_labels = batch["aux_labels"].to(device)
 
-                mean,sd = model(images, features)
-
-                # print(mean)
-                # print(sd)
+                pred_mean = model(images, features)
                 
-                
+               
                 optimizer.zero_grad()
-
-                # loss = args.loss_mean_weight * R2Loss(labels,mean) + args.loss_sd_weight * R2Loss( aux_labels, sd)
-                loss  = args.loss_mean_weight * R2Loss(labels,mean)
-
+                
+                loss = loss_fn(pred_mean, labels)
+                
 
                 loss.backward()
                 
@@ -87,6 +110,7 @@ def train_epoch(e, train_loader, model, optimizer, device):
                 
                 print('e [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(e+1, epochs, i+1, total_step, loss.item()))
                 logging.info({"epoch": e, "loss" : loss.item()})
+
 
 def eval_epoch(e, ds, model, device):
     model.eval()
@@ -167,6 +191,8 @@ if __name__ == "__main__":
     
     model.to(args.device)
 
+    
+    multitask_loss = MultiTaskLossWrapper()
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=args.lr,
                                  weight_decay=args.weight_decay)
@@ -179,7 +205,7 @@ if __name__ == "__main__":
     
     print("start training >>>")
     for e in range(epochs):  
-        train_epoch(e,train_loader, model, optimizer, args.device)
+        train_epoch(e,train_loader, model, multitask_loss, optimizer, args.device)
         
         if e % args.eval_every == 0 or e == args.epochs:
             metric_data = eval_epoch(e,val_ds,  model, args.device)
