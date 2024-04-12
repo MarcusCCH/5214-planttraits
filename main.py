@@ -183,7 +183,6 @@ if __name__ == "__main__":
         
         if e % args.eval_every == 0 or e == args.epochs:
             metric_data = eval_epoch(e,val_ds,  model, args.device)
-            print(metric_data)
             pd.DataFrame(metric_data).to_csv(
                 os.path.join(save_dir, f"valid_metric_{e}.csv"))
             
