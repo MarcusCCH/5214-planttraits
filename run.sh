@@ -12,3 +12,7 @@ python3 main.py --train_csv data/train_50000.csv --batch_size 32 --device cuda:1
 
 # full training
 python3 main.py --train_csv data/train.csv --batch_size 32 --device cuda:1 --case_name train_full --pretrain output/train_full/model_1.pth
+
+# evaluation
+python3 evaluation.py --model_path output/train_full/model_1.pth 
+

@@ -73,25 +73,6 @@ class AuxModel(nn.Module):
         x = self.dropout(x)
         return x
     
-class MultiTaskLayer(nn.Module):
-    def __init__(self, in_features):
-        super().__init__()
-        self.linear = nn.Linear(in_features, in_features)
-        self.final = nn.Linear(in_features, 1)
-    def forward(self, x):
-        h0 = self.linear(x)
-        h1 = self.linear(x)
-        h2 = self.linear(x)
-        h3 = self.linear(x)
-        h4 = self.linear(x)
-        h5 = self.linear(x)
-        SSD = self.final(h0)
-        SLA = self.final(h1)
-        GH = self.final(h2)
-        SM = self.final(h3)
-        LN = self.final(h4)
-        LA = self.final(h5)
-        return SSD, SLA, GH, SM, LN, LA
     
 class Ensemble(nn.Module):
     def __init__(self, image_model, aux_model):

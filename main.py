@@ -93,7 +93,7 @@ def eval_epoch(e, ds, model, device):
 
     metric_data = defaultdict(list)
 
-    with tqdm(ds, desc=f"train e {e}") as t:
+    with tqdm(ds, desc=f"train e {e}", total=len(ds)) as t:
         for i, case in enumerate(t):
 
             images= case["images"]
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     train_csv = args.train_csv
     test_csv = args.test_csv
     
-    image_dir = "data"
+    image_dir = "data/train_images"
 
     ds = PlantDataset(train_csv, test_csv, image_dir)
     
