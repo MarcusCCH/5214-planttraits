@@ -79,19 +79,27 @@ class MultiTaskLayer(nn.Module):
         self.linear = nn.LazyLinear(out_features)
         self.final = nn.Linear(out_features, 1)
     def forward(self, x):
-        h0 = self.linear(x)
-        h1 = self.linear(x)
-        h2 = self.linear(x)
-        h3 = self.linear(x)
-        h4 = self.linear(x)
-        h5 = self.linear(x)
-        SSD = self.final(h0)
-        SLA = self.final(h1)
-        GH = self.final(h2)
-        SM = self.final(h3)
-        LN = self.final(h4)
-        LA = self.final(h5)
-        return SSD, SLA, GH, SM, LN, LA
+        # h0 = self.linear(x)
+        # h1 = self.linear(x)
+        # h2 = self.linear(x)
+        # h3 = self.linear(x)
+        # h4 = self.linear(x)
+        # h5 = self.linear(x)
+        # SSD = self.final(h0)
+        # SLA = self.final(h1)
+        # GH = self.final(h2)
+        # SM = self.final(h3)
+        # LN = self.final(h4)
+        # LA = self.final(h5)
+        out = None
+        for _ in range(6):
+            t = self.final(self.linear(x))
+            if out is None:
+                out = t
+            else:
+                out = torch.hstack((out,t))
+        assert out.size(dim=1) == 6 # check if number of traits == 6
+        return out
     
 class Ensemble(nn.Module):
     def __init__(self, image_model, aux_model):
@@ -116,7 +124,7 @@ class Ensemble(nn.Module):
     
 class EnsembleMultiTask(nn.Module):
     def __init__(self, image_model, aux_model):
-        super(Ensemble, self).__init__()
+        super(EnsembleMultiTask, self).__init__()
         self.image_model = image_model
         self.aux_model = aux_model
         self.fc_mean = MultiTaskLayer(512)
@@ -130,8 +138,7 @@ class EnsembleMultiTask(nn.Module):
         x1 = self.dropout(x1)
         x2 = self.aux_model(x2).float()
         x = torch.cat((x1,x2), dim = 1)
-        SSD_mean, SLA_mean, GH_mean, SM_mean, LN_mean, LA_mean = self.fc_mean(x)
-        pred_mean = [SSD_mean, SLA_mean, GH_mean, SM_mean, LN_mean, LA_mean]
+        pred_mean = self.fc_mean(x)
         # sd = self.fc_sd(x)
         return pred_mean
     

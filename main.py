@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 
 from utils.data import PlantDataset
 
-from model import LeNet, ResNet, AuxModel, Ensemble
+from model import LeNet, ResNet, AuxModel, Ensemble, EnsembleMultiTask
 from torch.utils.data import random_split
 from loss import  R2Loss, R2Metric, MultiTaskLossWrapper
 from torchvision.models import resnet18, resnet50, efficientnet_v2_s, EfficientNet_V2_S_Weights
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     model = efficientnet_v2_s(weights=None)
     # model = efficientnet_v2_s(weights=None, dropout = 0.5, num_classes=args.num_traits)
 
-    model = Ensemble(model, aux_model)
+    model = EnsembleMultiTask(model, aux_model)
     
     if args.pretrain:
         model.load_state_dict(torch.load(args.pretrain))
