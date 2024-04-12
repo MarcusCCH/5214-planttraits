@@ -61,7 +61,7 @@ def seed_everything(this_seed):
 def train_epoch(e, train_loader, model, optimizer, device):
     with tqdm(train_loader, desc=f"train e {e}") as t:
             for i, (batch) in enumerate(t):
-                if i+1 == total_step:
+                if i+1 == total_step: # no idea why loss explodes 
                     break;
                 images= batch["images"].to(device)
                 features = batch["features"].to(device)
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     train_ds, val_ds, test_ds = random_split(ds, [train_len,val_len,test_len ], generator = generator)
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size,
-                        shuffle=True)
+                        shuffle=True, num_workers = 4)
     
     aux_model = AuxModel()
     
