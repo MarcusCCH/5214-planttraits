@@ -35,10 +35,10 @@ class ResNet(nn.Module):
         self.c3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(p=0.5)
-        # self.gap = nn.AvgPool2d((2,2))
-        # self.fc1 = torch.nn.Linear(256, 120)
-        # self.fc2 = torch.nn.Linear(120, 84)
-        # self.fc3 = torch.nn.Linear(84, 6)
+
+        self.fc1 = torch.nn.Linear(256, 120)
+        self.fc2 = torch.nn.Linear(120, 84)
+        self.fc3 = torch.nn.Linear(84, 6)
 
 
     def forward(self, x):
@@ -48,13 +48,10 @@ class ResNet(nn.Module):
         x = self.gap(x)
         x = torch.flatten(x, 1)
         x = self.dropout(x)
-        # x = torch.relu(self.fc1(x))
-        # x = torch.relu(self.fc2(x))
-        # x = self.fc3(x)
-        # output = []
-        # for i in range(self.class_num):
-        #     output.append(self.fc_list[i](x))
-        # return torch.Tensor(output)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        
         return x
 
 class AuxModel(nn.Module):
@@ -84,8 +81,12 @@ class Ensemble(nn.Module):
         self.fc_mean = nn.LazyLinear(6)
         self.fc_sd = nn.LazyLinear(6)
         
+        self.dropout = nn.Dropout(p=0.5)
+        
     def forward(self, x1,x2):
         x1 = self.image_model(x1).float()
+        # x1 = self.gap(x1)
+        x1 = self.dropout(x1)
         x2 = self.aux_model(x2).float()
         x = torch.cat((x1,x2), dim = 1)
         mean = self.fc_mean(x)

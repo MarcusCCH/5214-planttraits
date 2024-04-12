@@ -61,7 +61,8 @@ def seed_everything(this_seed):
 def train_epoch(e, train_loader, model, optimizer, device):
     with tqdm(train_loader, desc=f"train e {e}") as t:
             for i, (batch) in enumerate(t):
-        
+                if i+1 == total_step:
+                    break;
                 images= batch["images"].to(device)
                 features = batch["features"].to(device)
 
@@ -87,15 +88,18 @@ def train_epoch(e, train_loader, model, optimizer, device):
                 print('e [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(e+1, epochs, i+1, total_step, loss.item()))
                 logging.info({"epoch": e, "loss" : loss.item()})
 
-def eval_epoch(e, ds, model, optimizer, device):
+def eval_epoch(e, ds, model, device):
     model.eval()
 
     metric_data = defaultdict(list)
 
     with tqdm(ds, desc=f"train e {e}") as t:
         for i, case in enumerate(t):
+
             images= case["images"].to(device)
+            images = images.unsqueeze(0)
             features = case["features"].to(device)
+            features = features.unsqueeze(0)
 
             labels = case["labels"].to(device)
             aux_labels = case["aux_labels"].to(device)
@@ -126,7 +130,6 @@ if __name__ == "__main__":
                         level=logging.INFO)
 
     # prerare dataset
-
     train_csv = args.train_csv
     test_csv = args.test_csv
     
@@ -145,15 +148,14 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size,
                         shuffle=True)
-
     
     aux_model = AuxModel()
     
     # model = ResNet(3,6)
     # model = resnet50()
     # model = resnet50(weights=None, dropout = 0.5, num_classes=args.num_traits)
-    model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT, dropout = 0.5)
-    # model = efficientnet_v2_s(weights=None, dropout = 0.5)
+    # model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT, dropout = 0.5)
+    model = efficientnet_v2_s(weights=None)
     # model = efficientnet_v2_s(weights=None, dropout = 0.5, num_classes=args.num_traits)
 
     model = Ensemble(model, aux_model)
@@ -161,11 +163,7 @@ if __name__ == "__main__":
     if args.pretrain:
         model.load_state_dict(torch.load(args.pretrain))
     
-    
-
     model.to(args.device)
-    
-
 
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=args.lr,
@@ -181,15 +179,15 @@ if __name__ == "__main__":
     for e in range(epochs):  
         train_epoch(e,train_loader, model, optimizer, args.device)
         
-        if e % args.eval_every == 0 or e == args.epochs:
-            metric_data = eval_epoch(e,val_ds, model)
-            
-            pd.DataFrame(metric_data).to_csv(
-                os.path.join(save_dir, f"valid_metric_{e}.csv"))
-            
-            metric_data = eval_epoch(e,test_ds, model)
-            pd.DataFrame(metric_data).to_csv(
-                os.path.join(save_dir, f"test_metric_{e}.csv"))
+        # if e % args.eval_every == 0 or e == args.epochs:
+        # metric_data = eval_epoch(e,val_ds,  model, args.device)
+        # print(metric_data)
+        # pd.DataFrame(metric_data).to_csv(
+        #     os.path.join(save_dir, f"valid_metric_{e}.csv"))
+        
+        # metric_data = eval_epoch(e,test_ds, model,args.device)
+        # pd.DataFrame(metric_data).to_csv(
+        #     os.path.join(save_dir, f"test_metric_{e}.csv"))
             
         if e % args.save_every == 0:
             torch.save(model.state_dict(), os.path.join(save_dir, f"model_{e}.pth"))
