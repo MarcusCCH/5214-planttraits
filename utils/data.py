@@ -64,6 +64,7 @@ class PlantDataset(Dataset):
         
         self.train_df['image_path'] = f'{image_dir}/train_images/'+self.train_df['id'].astype(str)+'.jpeg'
         self.images = (self.train_df[["image_path"]].values)
+        self.id = self.train_df[["id"]].values
         # self.images = torch.tensor(list(map(lambda x: torchvision.io.read_image(x[0]), self.train_df[["image_path"]].values)))
         
         # print(self.images[0][0])
@@ -81,7 +82,7 @@ class PlantDataset(Dataset):
 
         # if self.transform:
         #     sample = self.transform(sample)
-        sample = {'images': image, 'features': torch.tensor(self.train_features[idx]).float(), 'labels': torch.tensor(self.train_labels[idx]).float(), 'aux_labels': torch.tensor(self.train_aux_labels[idx]).float()}
+        sample = {'id': self.id[idx][0],'images': image, 'features': torch.tensor(self.train_features[idx]).float(), 'labels': torch.tensor(self.train_labels[idx]).float(), 'aux_labels': torch.tensor(self.train_aux_labels[idx]).float()}
         # sample = {'images': torchvision.io.read_image(self.images[idx][0]), 'features': torch.tensor(self.train_features[idx]), 'labels': torch.tensor(self.train_labels[idx]), 'aux_labels': torch.tensor(self.train_aux_labels[idx])}
 
         return sample

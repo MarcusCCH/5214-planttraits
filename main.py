@@ -18,7 +18,7 @@ from utils.data import PlantDataset, CaseCollator
 
 from model import LeNet, ResNet, AuxModel, Ensemble
 from torch.utils.data import random_split
-from loss import  R2Loss
+from loss import  R2Loss, R2Metric
 from torchvision.models import resnet18, resnet50, efficientnet_v2_s, EfficientNet_V2_S_Weights
 
 def add_parser_arguments(parser):
@@ -34,7 +34,7 @@ def add_parser_arguments(parser):
     parser.add_argument('--epochs', type=int, default=200)
 
     parser.add_argument('--eval_every', type=int, default=10)
-    parser.add_argument('--save_every', type=int, default=10)
+    parser.add_argument('--save_every', type=int, default=1)
 
     parser.add_argument('--save_dir', type=str, default='output')
     parser.add_argument('--train_csv', type=str, default='sample.csv')
@@ -58,14 +58,63 @@ def seed_everything(this_seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+def train_epoch(e, train_loader, model, optimizer, device):
+    with tqdm(train_loader, desc=f"train e {e}") as t:
+            for i, (batch) in enumerate(t):
+        
+                images= batch["images"].to(device)
+                features = batch["features"].to(device)
 
+                labels = batch["labels"].to(device)
+                aux_labels = batch["aux_labels"].to(device)
+
+                mean,sd = model(images, features)
+
+                # print(mean)
+                # print(sd)
+                
+                
+                optimizer.zero_grad()
+
+                # loss = args.loss_mean_weight * R2Loss(labels,mean) + args.loss_sd_weight * R2Loss( aux_labels, sd)
+                loss  = args.loss_mean_weight * R2Loss(labels,mean)
+
+
+                loss.backward()
+                
+                optimizer.step()
+                
+                print('e [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(e+1, epochs, i+1, total_step, loss.item()))
+                logging.info({"epoch": e, "loss" : loss.item()})
+
+def eval_epoch(e, ds, model, optimizer, device):
+    model.eval()
+
+    metric_data = defaultdict(list)
+
+    with tqdm(ds, desc=f"train e {e}") as t:
+        for i, case in enumerate(t):
+            images= case["images"].to(device)
+            features = case["features"].to(device)
+
+            labels = case["labels"].to(device)
+            aux_labels = case["aux_labels"].to(device)
+
+            mean,sd = model(images, features)
+
+            r2  = R2Metric(labels,mean)
+            
+            metric_data['epoch'].append(e)
+            metric_data['id'].append(case["id"])
+            metric_data['r2'].append(r2)
+
+    return metric_data    
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     add_parser_arguments(parser)
 
     args = parser.parse_args()
-
-    # seed_everything(args.seed)
 
     save_dir = os.path.join(args.save_dir, args.case_name)
 
@@ -96,20 +145,26 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size,
                         shuffle=True)
-    
-    
 
+    
     aux_model = AuxModel()
     
     # model = ResNet(3,6)
     # model = resnet50()
     # model = resnet50(weights=None, dropout = 0.5, num_classes=args.num_traits)
-    # model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT, dropout = 0.5, num_classes=args.num_traits)
-    model = efficientnet_v2_s(weights=None, dropout = 0.5)
+    model = efficientnet_v2_s(weights=EfficientNet_V2_S_Weights.DEFAULT, dropout = 0.5)
+    # model = efficientnet_v2_s(weights=None, dropout = 0.5)
     # model = efficientnet_v2_s(weights=None, dropout = 0.5, num_classes=args.num_traits)
 
     model = Ensemble(model, aux_model)
+    
+    if args.pretrain:
+        model.load_state_dict(torch.load(args.pretrain))
+    
+    
+
     model.to(args.device)
+    
 
 
     optimizer = torch.optim.Adam(model.parameters(),
@@ -121,33 +176,20 @@ if __name__ == "__main__":
 
     model.train()
     total_step = len(train_loader)
+    
     print("start training >>>")
-    for epoch in range(epochs):  
-        with tqdm(train_loader, desc=f"train epoch {epoch}") as t:
-            for i, (batch) in enumerate(t):
+    for e in range(epochs):  
+        train_epoch(e,train_loader, model, optimizer, args.device)
         
-                images= batch["images"].to(args.device)
-                features = batch["features"].to(args.device)
-
-                labels = batch["labels"].to(args.device)
-                aux_labels = batch["aux_labels"].to(args.device)
-
-                mean,sd = model(images, features)
-
-                # print(mean)
-                # print(sd)
-                
-                
-                optimizer.zero_grad()
-
-                # loss = args.loss_mean_weight * R2Loss(labels,mean) + args.loss_sd_weight * R2Loss( aux_labels, sd)
-                loss  = args.loss_mean_weight * R2Loss(labels,mean)
-
-
-                loss.backward()
-                
-                optimizer.step()
-                
-                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, epochs, i+1, total_step, loss.item()))
-
-  
+        if e % args.eval_every == 0 or e == args.epochs:
+            metric_data = eval_epoch(e,val_ds, model)
+            
+            pd.DataFrame(metric_data).to_csv(
+                os.path.join(save_dir, f"valid_metric_{e}.csv"))
+            
+            metric_data = eval_epoch(e,test_ds, model)
+            pd.DataFrame(metric_data).to_csv(
+                os.path.join(save_dir, f"test_metric_{e}.csv"))
+            
+        if e % args.save_every == 0:
+            torch.save(model.state_dict(), os.path.join(save_dir, f"model_{e}.pth"))

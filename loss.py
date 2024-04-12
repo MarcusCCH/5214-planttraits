@@ -39,3 +39,10 @@ def R2Loss(y_true, y_pred):
     # print("SS_TOTAL: ", SS_total)
     eps = + 1e-6
     return torch.mean(SS_res / (SS_total + eps))
+
+def R2Metric(y_true, y_pred):
+    SS_res = torch.sum(torch.square((y_pred-y_true)), dim = 0)
+    SS_total = torch.sum(torch.square((y_true- torch.mean(y_true, dim= 0))), dim = 0)
+
+    eps = + 1e-6
+    return torch.mean(1- SS_res / (SS_total + eps))

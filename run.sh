@@ -6,4 +6,4 @@ python3 main.py --train_csv train_10000.csv --batch_size 16 --device cuda:1
 
 
 # 30000 samples
-python3 main.py --train_csv train_30000.csv --batch_size 16 --device cuda:1
+python3 main.py --train_csv train_30000.csv --batch_size 32 --device cuda:1 --case_name train_30000 --pretrain output/train_30000/model_2.pth
