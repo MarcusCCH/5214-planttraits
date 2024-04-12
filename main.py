@@ -112,6 +112,35 @@ def train_epoch(e, train_loader, model, loss_fn, optimizer, device):
                 logging.info({"epoch": e, "loss" : loss.item()})
 
 
+# def eval_epoch(e, ds, model, device):
+#     model.eval()
+
+#     metric_data = defaultdict(list)
+
+#     with tqdm(ds, desc=f"train e {e}") as t:
+#         for i, case in enumerate(t):
+
+#             images= case["images"]
+#             images = images.unsqueeze(0).to(device)
+
+#             features = case["features"]
+#             features = features.unsqueeze(0).to(device)
+        
+
+#             labels = case["labels"].to(device)
+#             aux_labels = case["aux_labels"].to(device)
+
+#             mean,sd = model(images, features)
+
+#             r2  = R2Metric(labels,mean)
+            
+#             metric_data['epoch'].append(e)
+#             metric_data['id'].append(case["id"])
+#             metric_data['r2'].append(r2.detach().cpu().numpy())
+
+#     return metric_data    
+    
+
 def eval_epoch(e, ds, model, device):
     model.eval()
 
@@ -130,7 +159,7 @@ def eval_epoch(e, ds, model, device):
             labels = case["labels"].to(device)
             aux_labels = case["aux_labels"].to(device)
 
-            mean,sd = model(images, features)
+            mean= model(images, features)
 
             r2  = R2Metric(labels,mean)
             

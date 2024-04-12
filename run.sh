@@ -15,3 +15,6 @@ python3 main.py --train_csv data/train.csv --batch_size 32 --device cuda:1 --cas
 
 # full training with sd
 python3 main.py --train_csv data/train.csv --batch_size 32 --device cuda:1 --case_name train_full_with_sd --pretrain output/train_full/model_2.pth
+
+# full trianing - multitask
+python3 main.py --train_csv data/train.csv --batch_size 32 --device cuda:1 --case_name train_full_multitask 
