@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import copy
 
 class LeNet(nn.Module):
     def __init__(self, num_traits):
@@ -25,19 +26,69 @@ class LeNet(nn.Module):
         return x
 
 class ResNet(nn.Module):
-    def __init__(self, num_channel_in=16*3, class_num=None):
+    def __init__(self, num_channel_in=3, class_num=None):
         super(ResNet, self).__init__()
+    
+        self.class_num = class_num
         self.c1 = nn.Conv2d(num_channel_in, 128, kernel_size=3, stride=1, padding=1)
         self.c2 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
-        # self.c3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
+        self.c3 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.linear = torch.nn.Linear(256, class_num)
+        self.dropout = nn.Dropout(p=0.5)
+        # self.gap = nn.AvgPool2d((2,2))
+        # self.fc1 = torch.nn.Linear(256, 120)
+        # self.fc2 = torch.nn.Linear(120, 84)
+        # self.fc3 = torch.nn.Linear(84, 6)
+
 
     def forward(self, x):
         x = self.c1(x)
         x = self.c2(x)
-        # x = self.c3(x)
+        x = self.c3(x)
         x = self.gap(x)
         x = torch.flatten(x, 1)
-        x = self.linear(x)
+        x = self.dropout(x)
+        # x = torch.relu(self.fc1(x))
+        # x = torch.relu(self.fc2(x))
+        # x = self.fc3(x)
+        # output = []
+        # for i in range(self.class_num):
+        #     output.append(self.fc_list[i](x))
+        # return torch.Tensor(output)
         return x
+
+class AuxModel(nn.Module):
+    def __init__(self, in_feat=162, class_num=None):
+        super(AuxModel, self).__init__()
+    
+    
+        self.class_num = class_num
+        self.fc1 = torch.nn.Linear(in_feat, 326)
+        # print("fc1 dtype: " , self.fc1.weight.dtype)
+        self.fc2 = torch.nn.Linear(326, 64)
+        # print("fc2 dtype: " , self.fc2.weight.dtype)
+        
+        self.dropout = nn.Dropout(p=0.5)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.dropout(x)
+        return x
+    
+class Ensemble(nn.Module):
+    def __init__(self, image_model, aux_model):
+        super(Ensemble, self).__init__()
+        self.image_model = image_model
+        self.aux_model = aux_model
+        self.fc_mean = nn.LazyLinear(6)
+        self.fc_sd = nn.LazyLinear(6)
+        
+    def forward(self, x1,x2):
+        x1 = self.image_model(x1).float()
+        x2 = self.aux_model(x2).float()
+        x = torch.cat((x1,x2), dim = 1)
+        mean = self.fc_mean(x)
+        sd = self.fc_sd(x)
+        return (mean,sd)
+    

@@ -5,45 +5,103 @@ import os
 import torch
 import torchvision
 import numpy as np
-def get_training_data(train_path, image_path):
+from torch.utils.data import Dataset, DataLoader
+
+def get_data(train_path, test_path, image_path):
     assert "csv" in train_path
     try:
-        df =pd.read_csv(train_path)
+        train_df =pd.read_csv(train_path)
+        test_df = pd.read_csv(test_path)
     except:
         raise Exception("Error loading training data at path: {train_path}")
 
     cases = []
 
-    attr_list = "id,X4_mean,X11_mean,X18_mean,X26_mean,X50_mean,X3112_mean,X4_sd,X11_sd,X18_sd,X26_sd,X50_sd,X3112_sd".split(",")
+    classes = "X4_mean,X11_mean,X18_mean,X26_mean,X50_mean,X3112_mean".split(",")
 
-    for case in tqdm(df.iterrows()):
-        data = {}
-        for attr in attr_list: 
-            data[attr] = case[1][attr]
-        case = PlantCase(data, image_path)
-        cases.append(case)
+    aux_classes = list(map(lambda x: x.replace("mean","sd"), classes))
+    feature_cols = test_df.columns[1:-1].tolist()
+
+    train_features = train_df[feature_cols].values
+    train_labels = train_df[classes].values
+    train_aux_labels = train_df[aux_classes].values
+    
+    train_df['image_path'] = f'{image_path}/train_images/'+train_df['id'].astype(str)+'.jpeg'
+    images = train_df[["image_path"]].values
+    
+    # print(images[:2])
+    
+    # print(train_features[:2])
+    # print(train_labels[:2])
+    # print(train_aux_labels[:2])
+
+    # for case in tqdm(df.iterrows()):
+    #     data = {}
+    #     for attr in attr_list: 
+    #         data[attr] = case[1][attr]
+    #     case = PlantCase(data, image_path)
+    #     cases.append(case)
     
 
     shuffle(cases)
 
     return cases
 
-class PlantCase:
-    def __init__(self, data, image_path):
+class PlantDataset(Dataset):
+    def __init__(self, train_csv, test_csv, image_dir, transform=None):
+    
+        self.train_df =pd.read_csv(train_csv)
+        
+        self.test_df = pd.read_csv(test_csv)
+        classes = "X4_mean,X11_mean,X18_mean,X26_mean,X50_mean,X3112_mean".split(",")
 
-        self.id =int(data["id"])
-        self.image_url = os.path.join(image_path, f"{self.id}.jpeg")
-        self.image =  torchvision.io.read_image(self.image_url)
+        aux_classes = list(map(lambda x: x.replace("mean","sd"), classes))
+        feature_cols = self.test_df.columns[1:-1].fillna(-1).tolist()
 
-        self.trait_mean = [v for index,(k,v) in enumerate(data.items()) if "mean" in k]
-        self.trait_sd = [v for index,(k,v) in enumerate(data.items()) if "sd" in k]   
+        self.train_features = self.train_df[feature_cols].values
+        self.train_labels = self.train_df[classes].values
+        self.train_aux_labels = self.train_df[aux_classes].values
+        
+        self.train_df['image_path'] = f'{image_dir}/train_images/'+self.train_df['id'].astype(str)+'.jpeg'
+        self.images = (self.train_df[["image_path"]].values)
+        # self.images = torch.tensor(list(map(lambda x: torchvision.io.read_image(x[0]), self.train_df[["image_path"]].values)))
+        
+        # print(self.images[0][0])
+        # print(self.train_features[0])
+        # print(self.train_labels[0])
+        
+    def __len__(self):
+        return len(self.train_df) 
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        image = torchvision.io.read_image(self.images[idx][0]).float()
+
+        # if self.transform:
+        #     sample = self.transform(sample)
+        sample = {'images': image, 'features': torch.tensor(self.train_features[idx]).float(), 'labels': torch.tensor(self.train_labels[idx]).float(), 'aux_labels': torch.tensor(self.train_aux_labels[idx]).float()}
+        # sample = {'images': torchvision.io.read_image(self.images[idx][0]), 'features': torch.tensor(self.train_features[idx]), 'labels': torch.tensor(self.train_labels[idx]), 'aux_labels': torch.tensor(self.train_aux_labels[idx])}
+
+        return sample
+    
+# class PlantCase:
+#     def __init__(self, data, image_path):
+
+#         self.id =int(data["id"])
+#         self.image_url = os.path.join(image_path, f"{self.id}.jpeg")
+#         self.image =  torchvision.io.read_image(self.image_url)
+
+#         self.trait_mean = [v for index,(k,v) in enumerate(data.items()) if "mean" in k]
+#         self.trait_sd = [v for index,(k,v) in enumerate(data.items()) if "sd" in k]   
 
         
-    def pprint(self):
+#     def pprint(self):
 
-        # print(self.image)
-        print(self.trait_mean)
-        print(self.trait_sd)
+#         # print(self.image)
+#         print(self.trait_mean)
+#         print(self.trait_sd)
         
 class CaseCollator:
     def __call__(self, cases):
