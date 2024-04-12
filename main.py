@@ -20,7 +20,7 @@ from model import LeNet, ResNet, AuxModel, Ensemble
 from torch.utils.data import random_split
 from loss import  R2Loss, R2Metric
 from torchvision.models import resnet18, resnet50, efficientnet_v2_s, EfficientNet_V2_S_Weights
-
+import time
 def add_parser_arguments(parser):
     
     parser.add_argument('--num_traits', type=float, default=6)
@@ -59,7 +59,7 @@ def seed_everything(this_seed):
     torch.backends.cudnn.benchmark = False
 
 def train_epoch(e, train_loader, model, optimizer, device):
-    with tqdm(train_loader, desc=f"train e {e}") as t:
+    with tqdm(train_loader, desc=f"train epoch {e}") as t:
             for i, (batch) in enumerate(t):
                 if i+1 == total_step: # no idea why loss explodes 
                     break;
@@ -85,7 +85,9 @@ def train_epoch(e, train_loader, model, optimizer, device):
                 
                 optimizer.step()
                 
-                print('e [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(e+1, epochs, i+1, total_step, loss.item()))
+                time_elapsed = time.time() - start_time
+                
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Time used >>> {}:{}'.format(e+1, epochs, i+1, total_step, loss.item(), int(time_elapsed / 60), int(time_elapsed % 60)))
                 logging.info({"epoch": e, "loss" : loss.item()})
 
 def eval_epoch(e, ds, model, device):
@@ -93,14 +95,15 @@ def eval_epoch(e, ds, model, device):
 
     metric_data = defaultdict(list)
 
-    with tqdm(ds, desc=f"train e {e}", total=len(ds)) as t:
+    loader = DataLoader(ds, batch_size=args.batch_size, num_workers = 4)
+    with tqdm(loader, desc=f"train e {e}", total=len(loader)) as t:
         for i, case in enumerate(t):
 
             images= case["images"]
-            images = images.unsqueeze(0).to(device)
+            # images = images.unsqueeze(0).to(device)
 
             features = case["features"]
-            features = features.unsqueeze(0).to(device)
+            # features = features.unsqueeze(0).to(device)
         
 
             labels = case["labels"].to(device)
@@ -117,6 +120,7 @@ def eval_epoch(e, ds, model, device):
     return metric_data    
     
 if __name__ == "__main__":
+    start_time = time.time()
     parser = argparse.ArgumentParser()
     add_parser_arguments(parser)
 
@@ -179,6 +183,7 @@ if __name__ == "__main__":
     
     print("start training >>>")
     for e in range(epochs):  
+        
         train_epoch(e,train_loader, model, optimizer, args.device)
         
         if e % args.eval_every == 0 or e == args.epochs:
