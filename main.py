@@ -100,14 +100,17 @@ def train_epoch(e, train_loader, model, optimizer, device):
                 cnt += 1
                 print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Avg Loss: {:.4f}, Time used >>> {}:{}'.format(e+1, epochs, i+1, total_step, loss.item(), avg_loss/(i+1), int(time_elapsed / 60), int(time_elapsed % 60)))
 
-            logging.info({"epoch": e, "loss" : avg_loss/cnt})
+            logging.info({"type": "train", "epoch": e, "loss" : avg_loss/cnt})
 
-def eval_epoch(e, ds, model, device):
+def eval_epoch(e, ds, model, device, name):
     model.eval()
 
     metric_data = defaultdict(list)
 
     loader = DataLoader(ds, batch_size=args.batch_size, num_workers = 4)
+    
+    avg_loss = 0
+    cnt = 0
     with tqdm(loader, desc=f"train e {e}", total=len(loader)) as t:
         for i, case in enumerate(t):
 
@@ -128,11 +131,13 @@ def eval_epoch(e, ds, model, device):
             mean_metric = R2Score()
             mean_metric.update(mean, labels)
             r2 = mean_metric.compute()
-               
+            
+            avg_loss += r2
+            cnt += 1
             metric_data['epoch'].append(e)
             metric_data['id'].append(case["id"])
             metric_data['r2'].append(r2.detach().cpu().numpy())
-
+        logging.info({"type": name, "epoch": e, "loss" : avg_loss/cnt})
 
     # for i, case in enumerate(ds):
 
@@ -205,6 +210,8 @@ if __name__ == "__main__":
     else:
         if args.model.lower() == "eff":
             model = efficientnet_v2_s(weights=None)
+        elif args.model.lower() == "eff_l":
+            model = efficientnet_v2_l(weights=None)
         elif args.model.lower() == "vit_b32":
             model = vit_b_32(weights=None) 
         elif args.model.lower() == "vit_b_16":
@@ -246,13 +253,13 @@ if __name__ == "__main__":
         if e % args.save_every == 0:
             torch.save(model.state_dict(), os.path.join(save_dir, f"model_{e}.pth"))
             
-        if e % args.eval_every == 0 or e == args.epochs:
-            metric_data = eval_epoch(e,val_ds,  model, args.device)
-            pd.DataFrame(metric_data).to_csv(
-                os.path.join(save_dir, f"valid_metric_{e}.csv"))
+        # if e % args.eval_every == 0 or e == args.epochs:
+        #     metric_data = eval_epoch(e,val_ds,  model, args.device, name="val")
+        #     pd.DataFrame(metric_data).to_csv(
+        #         os.path.join(save_dir, f"valid_metric_{e}.csv"))
             
-            metric_data = eval_epoch(e,test_ds, model,args.device)
-            pd.DataFrame(metric_data).to_csv(
-                os.path.join(save_dir, f"test_metric_{e}.csv"))
+        #     metric_data = eval_epoch(e,test_ds, model,args.device,name="test")
+        #     pd.DataFrame(metric_data).to_csv(
+        #         os.path.join(save_dir, f"test_metric_{e}.csv"))
             
         

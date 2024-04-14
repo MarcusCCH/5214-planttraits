@@ -20,12 +20,12 @@ from model import LeNet, ResNet, AuxModel, Ensemble, EnsembleMulti
 from torch.utils.data import random_split
 from loss import  R2Loss, R2Metric, MultiTaskLossWrapper
 from torchvision.models import resnet18, resnet50, efficientnet_v2_s, efficientnet_v2_l, EfficientNet_V2_L_Weights, convnext_tiny, ConvNeXt_Small_Weights, vit_b_32, vit_h_14, vit_b_16
-
+import re
 
 def add_parser_arguments(parser):
     parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--model_dir', type=str, default=None)
-    parser.add_argument('--hidden', type=str, default=326)
+    parser.add_argument('--hidden', type=int, default=326)
     parser.add_argument('--device', type=str, default="cuda:0")
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--model', type=str, default = "eff")
@@ -46,7 +46,10 @@ def evaluate():
             
     model_path = args.model_path or os.path.join(args.model_dir, model_pths[0]) # take custom path or the latest model
     print(f"Selected model: {model_path}")
-                
+    
+      
+    
+    
     test_csv = "data/test.csv"
     image_dir = "data/test_images"
     
@@ -103,13 +106,25 @@ def evaluate():
     pred_df[target_cols] = preds
 
     print(pred_df)
-    pred_df.to_csv("submission_1.csv", index=False)
-    # sub_df = pd.read_csv(f'sample_submission.csv')
-    # sub_df = sub_df[["id"]].copy()
-    # sub_df = sub_df.merge(pred_df, on="id", how="left")
-
-    # sub_df.to_csv("submission.csv", index=False)
-    # sub_df.head()
+    
+    
+    reg = re.findall("^(.*/)*(.*)/(.*)\.pth$", model_path)
+    case_name = reg[0][1]
+    model_num = reg[0][2]
+    
+    print("Case name: ", case_name)
+    print("Model num: ",model_num)
+    
+    dir = os.path.join("submissions", case_name)
+    os.makedirs(dir, exist_ok=True)
+    
+    
+    file = os.path.join(dir, case_name+ "-" + model_num+ ".csv")
+    print("Output file: ", file)
+            
+    pred_df.to_csv(file, index=False) # for history
+    pred_df.to_csv("submission.csv", index=False) # for instant quick look
+    
     
     
     
