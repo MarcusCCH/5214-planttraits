@@ -63,6 +63,8 @@ def evaluate():
     else:
         if args.model.lower() == "eff":
             model = efficientnet_v2_s(weights=None)
+        elif args.model.lower() == "eff_l":
+            model = efficientnet_v2_l(weights=None)
         elif args.model.lower() == "vit_b32":
             model = vit_b_32(weights=None) 
         elif args.model.lower() == "vit_b_16":
@@ -95,9 +97,6 @@ def evaluate():
             
             preds.extend(mean.detach().cpu().tolist())
             
-
-            
-
 
     test_df = pd.read_csv("data/test.csv")
     pred_df = test_df[["id"]].copy()

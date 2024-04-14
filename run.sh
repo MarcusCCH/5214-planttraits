@@ -30,3 +30,4 @@ python3 evaluation.py --model eff --model_dir output/eff_s_326/  --device cuda:3
 python3 evaluation.py --model eff --model_dir output/eff_s_326/  --model_path output/eff_s_326_out98/model_90.pth --device cuda:3
 python3 evaluation.py --model eff --model_dir output/eff_s_326_out98  --device cuda:2
 python3 evaluation.py --model eff --model_dir output/eff_s_512_out98  --hidden 512 --device cuda:2
+python3 evaluation.py --model eff_l --model_dir output/eff_l_512_out98  --hidden 512 --device cuda:2
