@@ -1,3 +1,6 @@
 .kaggle
 data/
 __pycache__
+visualisation/
+output/*
+*.pth
